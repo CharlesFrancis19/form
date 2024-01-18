@@ -1,6 +1,6 @@
 // pages/api/form-submit.js
 
-import { createConnection } from 'mysql';
+import { createConnection } from 'mysql2';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -19,16 +19,34 @@ export default async function handler(req, res) {
 
   connection.connect();
 
-  const query = 'INSERT INTO your_table_name (email, password) VALUES (?, ?)';
+  const tableName = 'details'; // Replace with your actual table name
 
-  connection.query(query, [email, password], (error, results) => {
-    connection.end();
+  const createTableQuery = `
+    CREATE TABLE IF NOT EXISTS ${tableName} (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      email VARCHAR(255) NOT NULL,
+      password VARCHAR(255) NOT NULL
+    )
+  `;
 
-    if (error) {
-      console.error('Error inserting into database:', error);
-      return res.status(500).json({ error: 'Internal Server Error' });
+  const insertDataQuery = `INSERT INTO ${tableName} (email, password) VALUES (?, ?)`;
+
+  connection.query(createTableQuery, (createTableError) => {
+    if (createTableError) {
+      console.error('Error creating table:', createTableError);
+      connection.end();
+      return res.status(500).json({ error: 'Error creating table' });
     }
 
-    return res.status(200).json({ success: true });
+    connection.query(insertDataQuery, [email, password], (insertError, results) => {
+      connection.end();
+
+      if (insertError) {
+        console.error('Error inserting into database:', insertError);
+        return res.status(500).json({ error: 'Error inserting into database' });
+      }
+
+      return res.status(200).json({ success: true });
+    });
   });
 }
